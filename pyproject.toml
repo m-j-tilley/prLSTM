@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prlstm"
+version = "0.1.0"
+description = "Parallelisable-Recurrent LSTM: modified LSTM cell with dual forward modes (Heinsen-scan parallel + exact recurrent) for fast curriculum training."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Matthew Tilley", email = "matthewtilley42@gmail.com"},
+]
+keywords = ["lstm", "rnn", "cuda", "triton", "deep-learning", "parallel-scan"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.1",
+]
+
+[project.optional-dependencies]
+# Optional: NVRTC-compiled persistent CUDA kernel (off by default, kept for
+# reference). Only needed if you flip USE_PERSISTENT_FWD in _triton.py.
+persistent-kernel = ["cupy-cuda12x"]
+dev = ["pytest>=7.0"]
+
+[project.urls]
+Repository = "https://github.com/m-j-tilley/prLSTM"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+prlstm = ["_csrc/*.cpp", "_csrc/*.mm"]

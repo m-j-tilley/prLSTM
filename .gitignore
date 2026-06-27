@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+*.so
+
+# Editable installs / build artefacts
+src/*.egg-info/
+.installed.cfg
+
+# Virtual envs
+venv/
+.venv/
+env/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# PyTorch / Triton / CUDA caches
+.cache/
+~/.cache/torch_extensions/
+*.pyc
+~/.triton/
+~/.cupy/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Notebook checkpoints
+.ipynb_checkpoints/
