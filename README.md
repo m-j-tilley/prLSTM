@@ -3,7 +3,7 @@
 Single-layer LSTM with three modifications to `torch.nn.LSTM`:
 
 1. `g_t` uses sigmoid instead of tanh (needed for 3).
-2. The recurrent contribution `W_hh h + b_hh` is scaled by a learnable per-gate scalar `a` (init `1e-4`).
+2. The prior state contribution `W_hh h + b_hh` is scaled by a learnable per-gate scalar `a` (init `1e-4`).
 3. Parallel-scan implementation using method from https://arxiv.org/abs/2311.06281 by F. Heinsen
 
 At init the parallel and recurrent versions are ~ the same.
