@@ -32,17 +32,16 @@ other platform's toolchain.
 `backend="auto"` (default) picks per-device:
 
   * **CUDA** → `triton` — fused Triton cell + cuBLAS GEMMs + CUDA-Graph
-    capture. Hand-written backward. Matches or beats cuDNN at scale.
+    capture, with a hand-written backward.
   * **MPS (Apple Silicon)** → `metal` — fused Metal compute shaders for
     the per-step cell forward and backward; MPSGraph handles the
-    matmuls. Hand-written custom autograd. Matches `torch.nn.LSTM` at
-    production training shapes.
+    matmuls, with a hand-written custom autograd.
   * **CPU / anywhere else** → `torch` — portable pure-PyTorch loop with
     a single batched input GEMM up-front and a custom autograd Function.
 
 `parallel=True` enables the Heinsen log-domain parallel scan (pure
-PyTorch — works on any device). On Apple Silicon it's the fastest
-option: O(log T) instead of O(T) — see "Performance" below.
+PyTorch — works on any device): O(log T) instead of O(T) — see
+"Performance" below.
 
 ## Usage
 
@@ -78,8 +77,8 @@ The Metal backend matches `nn.LSTM` at all production training scales
 (H ≥ 256). At very small hidden sizes the per-step kernel-launch
 overhead still shows — we issue 2 MPS launches per step (recurrent
 matmul + fused cell) where `nn.LSTM` does the whole T-step recurrence
-in one fused MPSGraph launch. The parallel-scan mode beats `nn.LSTM`
-at every shape (O(log T) vs O(T)).
+in one fused MPSGraph launch. The parallel-scan mode runs in O(log T)
+instead of O(T).
 
 ## Tests
 
@@ -101,8 +100,8 @@ O(log T):
   ([arXiv:2410.01201](https://arxiv.org/abs/2410.01201)). Introduces *minLSTM* /
   *minGRU*, minimal RNNs whose gates drop the hidden-state dependence so the
   recurrence `h_t = f_t ⊙ h_{t-1} + i_t ⊙ ĥ_t` can be run as a parallel scan.
-  prLSTM's `parallel=True` mode (dropping the recurrent term at `a = 0`) is the
-  same construction.
+  prLSTM's `parallel=True` mode (dropping the recurrent term at `a = 0`) uses the
+  same idea (input-only gates).
 - **xLSTM: Extended Long Short-Term Memory** — Beck et al., 2024
   ([arXiv:2405.04517](https://arxiv.org/abs/2405.04517)). Scales LSTMs with
   exponential gating; its *mLSTM* cell is fully parallelisable by making the gates
