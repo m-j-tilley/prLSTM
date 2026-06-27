@@ -1,15 +1,15 @@
 # PRLSTM — Parallelisable-Recurrent LSTM
 
-Single-layer LSTM with two modifications to `torch.nn.LSTM`:
+Single-layer LSTM with three modifications to `torch.nn.LSTM`:
 
-1. `g_t` uses sigmoid instead of tanh (needed for the parallel scan below).
+1. `g_t` uses sigmoid instead of tanh (needed for 3).
 2. The recurrent contribution `W_hh h + b_hh` is scaled by a learnable per-gate scalar `a` (init `1e-4`).
+3. Parallel-scan implementation using method from https://arxiv.org/abs/2311.06281 by F. Heinsen
 
-Together these turn the cell into a positive-coefficient linear recurrence that
-admits an **exact parallel-scan forward** (Heinsen log-domain) at `a = 0`,
-degrading smoothly to the standard recurrent forward as `a` grows.
+At init the parallel and recurrent versions are ~ the same.
 
-Parallel-scan implementation using method from https://arxiv.org/abs/2311.06281 by F. Heinsen
+With the motivation that you can start off training in parallel, add back the nonlinearity through the prior state dependence, then train with BPTT. (TBD if that's at all useful).
+
 
 ## Install
 
