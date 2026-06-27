@@ -11,7 +11,7 @@ At init the parallel and recurrent versions are ~ the same.
 With the motivation that you can start off training in parallel, add back the nonlinearity through the prior state dependence, then train with BPTT. 
 
 (TBD if this is at all useful, but the idea is that the non-linear recurrent version is possibly more expressive, but difficult to train.
-But the parallel implementation could rapidly train, and give BPTT a head-start).
+The parallel implementation could rapidly train, and give BPTT a head-start).
 
 
 ## Install
