@@ -3,9 +3,9 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "prlstm"
+name = "headstartlstm"
 version = "0.1.0"
-description = "Parallelisable-Recurrent LSTM: modified LSTM cell with dual forward modes (Heinsen-scan parallel + exact recurrent) for fast curriculum training."
+description = "HeadStartLSTM: an LSTM cell with dual forward modes (Heinsen-scan parallel + exact recurrent) — train the parallel form first to give BPTT a head start."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -34,10 +34,10 @@ persistent-kernel = ["cupy-cuda12x"]
 dev = ["pytest>=7.0"]
 
 [project.urls]
-Repository = "https://github.com/m-j-tilley/prLSTM"
+Repository = "https://github.com/m-j-tilley/HeadStartLSTM"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-prlstm = ["_csrc/*.cpp", "_csrc/*.mm"]
+headstartlstm = ["_csrc/*.cpp", "_csrc/*.mm"]

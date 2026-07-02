@@ -1,6 +1,6 @@
-"""PRLSTM: a parallelisable-recurrent LSTM.
+"""HeadStartLSTM: an LSTM whose recurrence can be trained in parallel first, then annealed in.
 
-PRLSTM is a single-layer, unidirectional LSTM modified two ways from
+HeadStartLSTM is a single-layer, unidirectional LSTM modified two ways from
 ``torch.nn.LSTM``:
 
   1. ``g_t`` uses ``sigmoid`` (not ``tanh``).
@@ -35,9 +35,9 @@ approximation as a grows. Pure PyTorch — runs on any device.
 Quick start::
 
     import torch
-    from prlstm import PRLSTM
+    from headstartlstm import HeadStartLSTM
 
-    m = PRLSTM(input_size=128, hidden_size=256).to("mps")
+    m = HeadStartLSTM(input_size=128, hidden_size=256).to("mps")
     x = torch.randn(64, 8, 128, device="mps")     # [T, B, D]
     output, (h_n, c_n) = m(x)
 
@@ -56,7 +56,7 @@ __version__ = "0.1.0"
 _HERE = Path(__file__).resolve().parent
 
 # The C++ baseline is JIT-compiled on first use (needs ninja + a C++ compiler).
-# Lazy so simply importing prlstm doesn't require a toolchain.
+# Lazy so simply importing headstartlstm doesn't require a toolchain.
 _cpp_ext = None
 
 
@@ -65,7 +65,7 @@ def _load_cpp_ext():
     if _cpp_ext is None:
         from torch.utils.cpp_extension import load
         _cpp_ext = load(
-            name="prlstm_cpp",
+            name="headstartlstm_cpp",
             sources=[str(_HERE / "_csrc" / "lstm_cell.cpp")],
             extra_cflags=["-O3"],
             verbose=False,
@@ -96,8 +96,8 @@ def _resolve_backend(backend: str, device_type: str, hidden_size: int) -> str:
     return "torch"
 
 
-class PRLSTM(nn.Module):
-    """Parallelisable-Recurrent LSTM.
+class HeadStartLSTM(nn.Module):
+    """An LSTM with a parallel-scan mode that warm-starts BPTT training.
 
     Parameters
     ----------
@@ -182,8 +182,8 @@ class PRLSTM(nn.Module):
                 c0 = c0.squeeze(0)
 
         if self.parallel:
-            from ._parallel import prlstm_parallel
-            output, h_n, c_n = prlstm_parallel(
+            from ._parallel import headstartlstm_parallel
+            output, h_n, c_n = headstartlstm_parallel(
                 x, h0, c0,
                 self.weight_ih_l0, self.weight_hh_l0,
                 self.bias_ih_l0,   self.bias_hh_l0,
@@ -192,24 +192,24 @@ class PRLSTM(nn.Module):
         else:
             backend = _resolve_backend(self.backend, x.device.type, self.hidden_size)
             if backend == "triton":
-                from ._triton import prlstm_triton
-                output, h_n, c_n = prlstm_triton(
+                from ._triton import headstartlstm_triton
+                output, h_n, c_n = headstartlstm_triton(
                     x, h0, c0,
                     self.weight_ih_l0, self.weight_hh_l0,
                     self.bias_ih_l0,   self.bias_hh_l0,
                     self.a,
                 )
             elif backend == "metal":
-                from ._metal import prlstm_metal
-                output, h_n, c_n = prlstm_metal(
+                from ._metal import headstartlstm_metal
+                output, h_n, c_n = headstartlstm_metal(
                     x, h0, c0,
                     self.weight_ih_l0, self.weight_hh_l0,
                     self.bias_ih_l0,   self.bias_hh_l0,
                     self.a,
                 )
             elif backend == "torch":
-                from ._torch import prlstm_torch
-                output, h_n, c_n = prlstm_torch(
+                from ._torch import headstartlstm_torch
+                output, h_n, c_n = headstartlstm_torch(
                     x, h0, c0,
                     self.weight_ih_l0, self.weight_hh_l0,
                     self.bias_ih_l0,   self.bias_hh_l0,
@@ -218,7 +218,7 @@ class PRLSTM(nn.Module):
                 )
             elif backend == "cpp":
                 ext = _load_cpp_ext()
-                output, h_n, c_n = ext.prlstm_forward(
+                output, h_n, c_n = ext.headstartlstm_forward(
                     x, h0, c0,
                     self.weight_ih_l0, self.weight_hh_l0,
                     self.bias_ih_l0,   self.bias_hh_l0,
@@ -233,4 +233,4 @@ class PRLSTM(nn.Module):
         return output, (h_n.unsqueeze(0), c_n.unsqueeze(0))
 
 
-__all__ = ["PRLSTM", "__version__"]
+__all__ = ["HeadStartLSTM", "__version__"]

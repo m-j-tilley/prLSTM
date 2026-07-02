@@ -1,4 +1,4 @@
-"""Parallel-mode PRLSTM forward via Heinsen log-domain scan.
+"""Parallel-mode HeadStartLSTM forward via Heinsen log-domain scan.
 
 Pure-PyTorch ops only — runs on any backend (CUDA, MPS, CPU). Autograd is
 traced through PyTorch, so no custom backward is required.
@@ -35,7 +35,7 @@ def _log_parallel_scan(f, c0, b, eps: float = 1e-6):
     return torch.exp(a_star + tail_lcse)                     # [B, T, H]
 
 
-def prlstm_parallel(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a, eps: float = 1e-6):
+def headstartlstm_parallel(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a, eps: float = 1e-6):
     """Parallel-mode forward via Heinsen scan.
 
     NOTE: W_hh, b_hh, a, h0 are accepted for API compatibility but are NOT

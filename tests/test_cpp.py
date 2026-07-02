@@ -1,4 +1,4 @@
-"""Verification tests for prlstm.PRLSTM.
+"""Verification tests for headstartlstm.HeadStartLSTM.
 
 Tests:
   1. forward       -- output matches a pure-Python reference of the same cell
@@ -19,7 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-from prlstm import PRLSTM
+from headstartlstm import HeadStartLSTM
 
 
 def reference_forward(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a):
@@ -55,7 +55,7 @@ def tol_for(dtype):
 def test_forward(device, dtype, T=10, B=4, D=16, H=24):
     print(f"  forward   T={T} B={B} D={D} H={H}")
     torch.manual_seed(0)
-    m = PRLSTM(D, H).to(device, dtype)
+    m = HeadStartLSTM(D, H).to(device, dtype)
     x = torch.randn(T, B, D, device=device, dtype=dtype)
 
     out_k, _ = m(x)
@@ -75,7 +75,7 @@ def test_forward(device, dtype, T=10, B=4, D=16, H=24):
 def test_backward(device, dtype, T=8, B=3, D=8, H=12):
     print(f"  backward  T={T} B={B} D={D} H={H}")
     torch.manual_seed(0)
-    m = PRLSTM(D, H).to(device, dtype)
+    m = HeadStartLSTM(D, H).to(device, dtype)
     x = torch.randn(T, B, D, device=device, dtype=dtype, requires_grad=True)
 
     # --- kernel ---
@@ -111,7 +111,7 @@ def test_training_step(device, dtype, T=12, B=4, D=8, H=12, lr=1e-2):
     print(f"  training_step  lr={lr}")
     torch.manual_seed(0)
 
-    m_k = PRLSTM(D, H).to(device, dtype)
+    m_k = HeadStartLSTM(D, H).to(device, dtype)
     ref_params = {n: p.detach().clone().requires_grad_(True)
                   for n, p in m_k.named_parameters()}
 

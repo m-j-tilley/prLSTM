@@ -1,11 +1,11 @@
-"""Triton-based fused-cell implementation of PRLSTM.
+"""Triton-based fused-cell implementation of HeadStartLSTM.
 
 Replaces the per-step elementwise op chain (sigmoid x 4, mul, add, tanh) with a
 single Triton kernel, while continuing to use cuBLAS (via torch.matmul) for the
 W_ih and W_hh matmuls. Wrapped in a torch.autograd.Function with a hand-written
 backward so PyTorch sees one op per forward (no traced graph through T steps).
 
-Activation choices in the cell match the canonical PRLSTM modifications:
+Activation choices in the cell match the canonical HeadStartLSTM modifications:
     1. g_t uses sigmoid (not tanh)
     2. W_hh contribution scaled by per-gate scalar a = [a_i, a_f, a_g, a_o]
        (scaling is applied to W_hh, b_hh once, outside the loop)
@@ -324,7 +324,7 @@ def _build_or_get_bwd_graph(T, B, D, H, dtype, device):
 # =====================================================================
 # Autograd function: full forward + backward, hand-written
 # =====================================================================
-class PRLSTMTritonFn(torch.autograd.Function):
+class HeadStartLSTMTritonFn(torch.autograd.Function):
     """Custom autograd. forward returns (output [T,B,H], h_n [B,H], c_n [B,H])."""
 
     @staticmethod
@@ -465,9 +465,9 @@ class PRLSTMTritonFn(torch.autograd.Function):
         return dx_all, None, None, dW_ih, dW_hh, db_ih, db_hh, da
 
 
-def prlstm_triton(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a):
+def headstartlstm_triton(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a):
     """Functional wrapper. Returns (output, h_n, c_n)."""
-    return PRLSTMTritonFn.apply(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a)
+    return HeadStartLSTMTritonFn.apply(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a)
 
 
 # =====================================================================
@@ -506,7 +506,7 @@ def _log_parallel_scan(f, c0, b, eps: float = 1e-6):
     return torch.exp(a_star + tail_lcse)                     # [B, T, H]
 
 
-def prlstm_triton_parallel(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a, eps: float = 1e-6):
+def headstartlstm_triton_parallel(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a, eps: float = 1e-6):
     """Parallel-mode forward via Heinsen scan. Autograd is traced through
     PyTorch ops — no custom backward.
 

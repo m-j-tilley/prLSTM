@@ -1,4 +1,4 @@
-"""Parity + divergence test for parallel-mode PRLSTM.
+"""Parity + divergence test for parallel-mode HeadStartLSTM.
 
 Mathematical claim:
   At a = 0, the parallel-mode forward (Heinsen log-domain scan, dropping the
@@ -17,7 +17,7 @@ import sys
 import torch
 
 
-from prlstm import PRLSTM
+from headstartlstm import HeadStartLSTM
 
 
 def tol(dtype):
@@ -31,11 +31,11 @@ def _default_backend():
 
 
 def _make_models(D, H, dtype, device, a_value):
-    """Build two PRLSTMs sharing the same parameters, one parallel, one recurrent."""
+    """Build two HeadStartLSTMs sharing the same parameters, one parallel, one recurrent."""
     torch.manual_seed(0)
     backend = _default_backend()
-    m_rec = PRLSTM(D, H, backend=backend, parallel=False).to(device, dtype)
-    m_par = PRLSTM(D, H, backend=backend, parallel=True ).to(device, dtype)
+    m_rec = HeadStartLSTM(D, H, backend=backend, parallel=False).to(device, dtype)
+    m_par = HeadStartLSTM(D, H, backend=backend, parallel=True ).to(device, dtype)
     with torch.no_grad():
         for p_par, p_rec in zip(m_par.parameters(), m_rec.parameters()):
             p_par.copy_(p_rec)

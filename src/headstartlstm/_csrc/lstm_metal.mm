@@ -1,4 +1,4 @@
-// PRLSTM: fused-cell Metal compute kernels.
+// HeadStartLSTM: fused-cell Metal compute kernels.
 //
 // Strategy (mirrors what the Triton path does on CUDA, scaled to MPS):
 //
@@ -8,7 +8,7 @@
 //     tile-based reuse via the matrix engine.
 //   * The per-step elementwise chain (add b_hh_scaled, add gates_ih, 4×
 //     sigmoid, mul/add for c, tanh, mul for h) collapses into a single
-//     Metal launch via the `prlstm_cell_fwd` kernel below.
+//     Metal launch via the `headstartlstm_cell_fwd` kernel below.
 //
 // On MPS this cuts the launch count per step from ~10 (one launch per
 // PyTorch op) to 2 (matmul + fused cell). At small/medium H that closes
@@ -19,7 +19,7 @@
 // and removed: it was memory-bandwidth-bound because the in-kernel matmul
 // can't reuse W_hh across threads the way MPSGraph's tiled matmul does.
 //
-// Cell modifications match the rest of PRLSTM:
+// Cell modifications match the rest of HeadStartLSTM:
 //   (1) g_t uses sigmoid (not tanh)
 //   (2) caller pre-scales W_hh / b_hh per-gate by `a`.
 
@@ -38,14 +38,14 @@ using namespace at::native::mps;
 // =====================================================================
 // Metal shader source: two kernels — forward cell, backward cell.
 // =====================================================================
-static const char* PRLSTM_METAL_SRC = R"MTL(
+static const char* HeadStartLSTM_METAL_SRC = R"MTL(
 #include <metal_stdlib>
 using namespace metal;
 
 // Per-(batch, h-position) thread. Reads three contributions to the gate
 // pre-activations (recurrent matmul, input matmul, b_hh_scaled) and emits
 // h_t, c_t plus saved activations for the backward.
-kernel void prlstm_cell_fwd(
+kernel void headstartlstm_cell_fwd(
     device const float* mm_result    [[buffer(0)]],   // [B, 4H] = h_{t-1} @ W_hh^T
     device const float* gates_ih     [[buffer(1)]],   // [B, 4H] = linear(x_t, W_ih, b_ih)
     device const float* b_hh_scaled  [[buffer(2)]],   // [4H]
@@ -91,7 +91,7 @@ kernel void prlstm_cell_fwd(
 // Per-step backward of the cell. Takes incoming dh, dc and the saved
 // activations; writes dgates [B, 4H] (consumed by the outer recurrent
 // matmul to produce dh_{t-1}) and dc_prev [B, H].
-kernel void prlstm_cell_bwd(
+kernel void headstartlstm_cell_bwd(
     device const float* dh           [[buffer(0)]],   // [B, H]  — incoming dh
     device const float* dc           [[buffer(1)]],   // [B, H]  — incoming dc (from t+1)
     device const float* c_prev       [[buffer(2)]],   // [B, H]
@@ -145,7 +145,7 @@ kernel void prlstm_cell_bwd(
 // Pipeline state cache.
 // =====================================================================
 static MetalShaderLibrary& get_lib() {
-    static MetalShaderLibrary lib(PRLSTM_METAL_SRC);
+    static MetalShaderLibrary lib(HeadStartLSTM_METAL_SRC);
     return lib;
 }
 
@@ -153,7 +153,7 @@ static MetalShaderLibrary& get_lib() {
 // =====================================================================
 // Forward cell — replaces ~10 PyTorch ops per step with one Metal launch.
 // =====================================================================
-std::vector<torch::Tensor> prlstm_metal_cell_fwd(
+std::vector<torch::Tensor> headstartlstm_metal_cell_fwd(
     torch::Tensor mm_result,      // [B, 4H]
     torch::Tensor gates_ih,       // [B, 4H]
     torch::Tensor b_hh_scaled,    // [4H]
@@ -176,7 +176,7 @@ std::vector<torch::Tensor> prlstm_metal_cell_fwd(
     auto c_out = torch::empty({B, H},     opts);
     auto saved = torch::empty({B, 5 * H}, opts);
 
-    id<MTLComputePipelineState> pso = get_lib().getPipelineStateForFunc("prlstm_cell_fwd");
+    id<MTLComputePipelineState> pso = get_lib().getPipelineStateForFunc("headstartlstm_cell_fwd");
     at::mps::MPSStream* stream = at::mps::getCurrentMPSStream();
 
     dispatch_sync(stream->queue(), ^{
@@ -209,7 +209,7 @@ std::vector<torch::Tensor> prlstm_metal_cell_fwd(
 // =====================================================================
 // Backward cell — single Metal launch per step.
 // =====================================================================
-std::vector<torch::Tensor> prlstm_metal_cell_bwd(
+std::vector<torch::Tensor> headstartlstm_metal_cell_bwd(
     torch::Tensor dh,             // [B, H]
     torch::Tensor dc,             // [B, H]
     torch::Tensor c_prev,         // [B, H]
@@ -226,7 +226,7 @@ std::vector<torch::Tensor> prlstm_metal_cell_bwd(
     auto dgates  = torch::empty({B, 4 * H}, opts);
     auto dc_prev = torch::empty({B, H},     opts);
 
-    id<MTLComputePipelineState> pso = get_lib().getPipelineStateForFunc("prlstm_cell_bwd");
+    id<MTLComputePipelineState> pso = get_lib().getPipelineStateForFunc("headstartlstm_cell_bwd");
     at::mps::MPSStream* stream = at::mps::getCurrentMPSStream();
 
     dispatch_sync(stream->queue(), ^{
@@ -255,8 +255,8 @@ std::vector<torch::Tensor> prlstm_metal_cell_bwd(
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("prlstm_cell_fwd", &prlstm_metal_cell_fwd,
-          "PRLSTM fused-cell forward (one Metal launch per step)");
-    m.def("prlstm_cell_bwd", &prlstm_metal_cell_bwd,
-          "PRLSTM fused-cell backward (one Metal launch per step)");
+    m.def("headstartlstm_cell_fwd", &headstartlstm_metal_cell_fwd,
+          "HeadStartLSTM fused-cell forward (one Metal launch per step)");
+    m.def("headstartlstm_cell_bwd", &headstartlstm_metal_cell_bwd,
+          "HeadStartLSTM fused-cell backward (one Metal launch per step)");
 }

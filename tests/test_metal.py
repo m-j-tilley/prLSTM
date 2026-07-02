@@ -8,7 +8,7 @@ reference cell by test_cpp.py). Only meaningful on macOS with MPS.
 import sys
 import torch
 
-from prlstm import PRLSTM
+from headstartlstm import HeadStartLSTM
 
 
 def tol(dtype):
@@ -16,7 +16,7 @@ def tol(dtype):
 
 
 def _clone_with_same_params(src, backend):
-    m = PRLSTM(src.input_size, src.hidden_size, backend=backend).to(
+    m = HeadStartLSTM(src.input_size, src.hidden_size, backend=backend).to(
         next(src.parameters()).device, next(src.parameters()).dtype
     )
     with torch.no_grad():
@@ -30,7 +30,7 @@ def _clone_with_same_params(src, backend):
 def test_forward(T=10, B=4, D=16, H=24, dtype=torch.float32):
     print(f"  forward   T={T} B={B} D={D} H={H}")
     torch.manual_seed(0)
-    m_ref = PRLSTM(D, H, backend="torch").to("mps", dtype)
+    m_ref = HeadStartLSTM(D, H, backend="torch").to("mps", dtype)
     m_met = _clone_with_same_params(m_ref, "metal")
 
     x = torch.randn(T, B, D, device="mps", dtype=dtype)
@@ -48,7 +48,7 @@ def test_forward(T=10, B=4, D=16, H=24, dtype=torch.float32):
 def test_backward(T=8, B=3, D=8, H=12, dtype=torch.float32):
     print(f"  backward  T={T} B={B} D={D} H={H}")
     torch.manual_seed(0)
-    m_ref = PRLSTM(D, H, backend="torch").to("mps", dtype)
+    m_ref = HeadStartLSTM(D, H, backend="torch").to("mps", dtype)
     m_met = _clone_with_same_params(m_ref, "metal")
 
     x  = torch.randn(T, B, D, device="mps", dtype=dtype, requires_grad=True)
@@ -71,7 +71,7 @@ def test_backward(T=8, B=3, D=8, H=12, dtype=torch.float32):
 def test_training_step(T=12, B=4, D=8, H=12, lr=1e-2, dtype=torch.float32):
     print(f"  training_step  lr={lr}")
     torch.manual_seed(0)
-    m_ref = PRLSTM(D, H, backend="torch").to("mps", dtype)
+    m_ref = HeadStartLSTM(D, H, backend="torch").to("mps", dtype)
     m_met = _clone_with_same_params(m_ref, "metal")
 
     x = torch.randn(T, B, D, device="mps", dtype=dtype)
@@ -95,7 +95,7 @@ def test_training_step(T=12, B=4, D=8, H=12, lr=1e-2, dtype=torch.float32):
 def main():
     if sys.platform != "darwin" or not torch.backends.mps.is_available():
         print("Metal backend requires macOS with MPS"); sys.exit(0)
-    from prlstm._metal import available
+    from headstartlstm._metal import available
     if not available():
         print("Metal extension failed to load — skipping"); sys.exit(0)
     print("\n=== Metal vs torch backend ===")

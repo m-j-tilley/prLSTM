@@ -1,4 +1,4 @@
-"""Metal (Apple Silicon) backend for PRLSTM.
+"""Metal (Apple Silicon) backend for HeadStartLSTM.
 
 Loads `_csrc/lstm_metal.mm` lazily via torch.utils.cpp_extension on first
 use. The .mm file compiles two fused Metal compute kernels — per-step cell
@@ -10,13 +10,13 @@ typical hidden sizes.
 
 Public API:
     available()        — bool; True if the extension built/loaded.
-    prlstm_metal(...)  — autograd-wrapped forward+backward.
+    headstartlstm_metal(...)  — autograd-wrapped forward+backward.
 
 Constraints inherited from the kernels:
     * fp32 only (Metal doesn't expose fp64).
     * Device must be MPS.
 
-The caller (PRLSTM.forward) checks these and falls back to the torch
+The caller (HeadStartLSTM.forward) checks these and falls back to the torch
 backend when they don't hold.
 """
 
@@ -43,7 +43,7 @@ def _try_load():
     try:
         from torch.utils.cpp_extension import load
         _ext = load(
-            name="prlstm_metal",
+            name="headstartlstm_metal",
             sources=[str(_HERE / "_csrc" / "lstm_metal.mm")],
             extra_cflags=[
                 "-O3", "-std=c++17",
@@ -67,7 +67,7 @@ def available() -> bool:
     return _try_load() is not None
 
 
-class PRLSTMMetalFn(torch.autograd.Function):
+class HeadStartLSTMMetalFn(torch.autograd.Function):
     """Custom autograd. forward returns (output [T, B, H], h_n, c_n).
 
     Per-step structure (same as the Triton/CUDA path, scaled to MPS):
@@ -84,7 +84,7 @@ class PRLSTMMetalFn(torch.autograd.Function):
     def forward(ctx, x, h0, c0, W_ih, W_hh, b_ih, b_hh, a):
         ext = _try_load()
         if ext is None:
-            raise RuntimeError(f"prlstm metal extension failed to load: {_load_failed_reason}")
+            raise RuntimeError(f"headstartlstm metal extension failed to load: {_load_failed_reason}")
 
         T, B, D = x.shape
         H = h0.shape[-1]
@@ -108,7 +108,7 @@ class PRLSTMMetalFn(torch.autograd.Function):
         h, c = h_save[0], c_save[0]
         for t in range(T):
             mm_res = h @ W_hh_T                          # [B, 4H]  (MPS matmul)
-            h_new, c_new, saved = ext.prlstm_cell_fwd(
+            h_new, c_new, saved = ext.headstartlstm_cell_fwd(
                 mm_res.contiguous(),
                 gates_ih_all[t].contiguous(),
                 b_hh_scaled, c.contiguous(),
@@ -144,7 +144,7 @@ class PRLSTMMetalFn(torch.autograd.Function):
         dc_cur = dc_n.contiguous().clone()
         for t in range(T - 1, -1, -1):
             dh_cur = dh_cur + dout[t]
-            dgates, dc_cur = ext.prlstm_cell_bwd(
+            dgates, dc_cur = ext.headstartlstm_cell_bwd(
                 dh_cur.contiguous(), dc_cur.contiguous(),
                 c_save[t].contiguous(), saved_acts[t].contiguous(),
             )
@@ -174,5 +174,5 @@ class PRLSTMMetalFn(torch.autograd.Function):
         return dx_all, dh0, dc0, dW_ih, dW_hh, db_ih, db_hh, da
 
 
-def prlstm_metal(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a):
-    return PRLSTMMetalFn.apply(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a)
+def headstartlstm_metal(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a):
+    return HeadStartLSTMMetalFn.apply(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a)

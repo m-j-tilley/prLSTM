@@ -15,7 +15,7 @@ import sys
 import torch
 
 
-from prlstm import PRLSTM
+from headstartlstm import HeadStartLSTM
 
 
 def tol(dtype):
@@ -23,8 +23,8 @@ def tol(dtype):
 
 
 def _clone_with_same_params(src, backend):
-    """Make a fresh PRLSTM with `backend` and copy src's parameters into it."""
-    m = PRLSTM(src.input_size, src.hidden_size, backend=backend).to(
+    """Make a fresh HeadStartLSTM with `backend` and copy src's parameters into it."""
+    m = HeadStartLSTM(src.input_size, src.hidden_size, backend=backend).to(
         next(src.parameters()).device, next(src.parameters()).dtype
     )
     with torch.no_grad():
@@ -38,7 +38,7 @@ def _clone_with_same_params(src, backend):
 def test_forward(device, dtype, T=10, B=4, D=16, H=24):
     print(f"  forward   T={T} B={B} D={D} H={H}")
     torch.manual_seed(0)
-    m_cpp = PRLSTM(D, H, backend="cpp").to(device, dtype)
+    m_cpp = HeadStartLSTM(D, H, backend="cpp").to(device, dtype)
     m_tri = _clone_with_same_params(m_cpp, "triton")
 
     x = torch.randn(T, B, D, device=device, dtype=dtype)
@@ -56,7 +56,7 @@ def test_forward(device, dtype, T=10, B=4, D=16, H=24):
 def test_backward(device, dtype, T=8, B=3, D=8, H=12):
     print(f"  backward  T={T} B={B} D={D} H={H}")
     torch.manual_seed(0)
-    m_cpp = PRLSTM(D, H, backend="cpp").to(device, dtype)
+    m_cpp = HeadStartLSTM(D, H, backend="cpp").to(device, dtype)
     m_tri = _clone_with_same_params(m_cpp, "triton")
 
     x = torch.randn(T, B, D, device=device, dtype=dtype, requires_grad=True)
@@ -81,7 +81,7 @@ def test_backward(device, dtype, T=8, B=3, D=8, H=12):
 def test_training_step(device, dtype, T=12, B=4, D=8, H=12, lr=1e-2):
     print(f"  training_step  lr={lr}")
     torch.manual_seed(0)
-    m_cpp = PRLSTM(D, H, backend="cpp").to(device, dtype)
+    m_cpp = HeadStartLSTM(D, H, backend="cpp").to(device, dtype)
     m_tri = _clone_with_same_params(m_cpp, "triton")
 
     x = torch.randn(T, B, D, device=device, dtype=dtype)

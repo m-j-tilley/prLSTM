@@ -1,4 +1,4 @@
-"""Persistent-kernel CUDA implementation of PRLSTM forward, JIT-compiled via
+"""Persistent-kernel CUDA implementation of HeadStartLSTM forward, JIT-compiled via
 cupy.RawKernel (NVRTC under the hood — no nvcc required).
 
 Design:
@@ -11,7 +11,7 @@ Design:
   - W_hh stays in HBM but persists in L2 after the first load (L2 is 40 MB on
     Ampere; W_hh at H=128 fp32 is 256 KB).
 
-Cell modifications match the rest of PRLSTM:
+Cell modifications match the rest of HeadStartLSTM:
   1. g_t uses sigmoid (not tanh)
   2. The W_hh h_{t-1} + b_hh contribution is pre-scaled by the per-gate `a`
      (caller passes the already-scaled W_hh_scaled and b_hh_scaled).

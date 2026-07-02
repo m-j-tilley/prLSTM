@@ -1,4 +1,4 @@
-"""Portable recurrent-mode PRLSTM forward, pure-PyTorch ops only.
+"""Portable recurrent-mode HeadStartLSTM forward, pure-PyTorch ops only.
 
 Runs on any backend (CUDA, MPS, CPU). The structure mirrors the Triton
 backend but uses ordinary PyTorch ops everywhere:
@@ -13,7 +13,7 @@ backend but uses ordinary PyTorch ops everywhere:
 The cell-step elementwise chain (4 sigmoids, mul/add for c, tanh, mul for h)
 is factored into `_cell_forward_step` / `_cell_backward_step` so it can be
 wrapped with `torch.compile` to fuse the ops into a single device kernel per
-step. That fusion is opt-in via `PRLSTM(..., compile_cell=True)`.
+step. That fusion is opt-in via `HeadStartLSTM(..., compile_cell=True)`.
 """
 
 import torch
@@ -75,8 +75,8 @@ def _maybe_compile_cell():
         _cell_bwd_fn = _cell_backward_step
 
 
-class PRLSTMTorchFn(torch.autograd.Function):
-    """Custom autograd for the recurrent PRLSTM forward (pure PyTorch).
+class HeadStartLSTMTorchFn(torch.autograd.Function):
+    """Custom autograd for the recurrent HeadStartLSTM forward (pure PyTorch).
 
     Forward returns (output [T, B, H], h_n [B, H], c_n [B, H]). Backward
     walks the reverse-time loop manually and finalises with batched GEMMs
@@ -170,7 +170,7 @@ class PRLSTMTorchFn(torch.autograd.Function):
         return dx_all, None, None, dW_ih, dW_hh, db_ih, db_hh, da
 
 
-def prlstm_torch(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a, compile_cell: bool = False):
+def headstartlstm_torch(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a, compile_cell: bool = False):
     if compile_cell:
         _maybe_compile_cell()
-    return PRLSTMTorchFn.apply(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a)
+    return HeadStartLSTMTorchFn.apply(x, h0, c0, W_ih, W_hh, b_ih, b_hh, a)

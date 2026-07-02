@@ -1,4 +1,6 @@
-# PRLSTM — Parallelisable-Recurrent LSTM
+# HeadStartLSTM
+
+*A single-layer LSTM with a parallel-scan mode that warm-starts BPTT: train the fast, parallelisable form first to give the nonlinear recurrent model a **head start**.*
 
 Single-layer LSTM with three modifications to `torch.nn.LSTM`:
 
@@ -13,12 +15,15 @@ With the motivation that you can start off training in parallel, add back the no
 (TBD if this is at all useful, but the idea is that the non-linear recurrent version is possibly more expressive, but difficult to train.
 The parallel implementation could rapidly train, and give BPTT a head-start).
 
+## A note on the name
+
+This repo was called `prLSTM` ("parallelisable-recurrent LSTM"). After making this public repo I noticed **PR-LSTM** was already taken by a different, earlier method: Gaudreault & Mao's *Parallel Recursive LSTM* ([arXiv:2605.17108](https://arxiv.org/abs/2605.17108)), so I renamed it to **HeadStartLSTM**.
 
 ## Install
 
 ```bash
-git clone https://github.com/m-j-tilley/prLSTM
-cd prLSTM
+git clone https://github.com/m-j-tilley/HeadStartLSTM
+cd HeadStartLSTM
 pip install -e .
 ```
 
@@ -47,11 +52,11 @@ PyTorch — works on any device): O(log T) instead of O(T) — see
 
 ```python
 import torch
-from prlstm import PRLSTM
+from headstartlstm import HeadStartLSTM
 
 # Works on CUDA, MPS, CPU — the default "auto" backend picks the right path.
 device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
-m = PRLSTM(input_size=128, hidden_size=256).to(device)
+m = HeadStartLSTM(input_size=128, hidden_size=256).to(device)
 x = torch.randn(64, 8, 128, device=device)    # [T, B, D]
 out, (h_n, c_n) = m(x)
 
@@ -64,7 +69,7 @@ out_par, _ = m(x)
 Apple M4 Pro, PyTorch 2.10, MPS backend, fp32, training step (forward
 + backward), median of 15 iters:
 
-| Shape (T, B, D, H)    | nn.LSTM | PRLSTM (metal) | PRLSTM (parallel) |
+| Shape (T, B, D, H)    | nn.LSTM | HeadStartLSTM (metal) | HeadStartLSTM (parallel) |
 |-----------------------|---------|----------------|-------------------|
 | 32,  16,   64,  128   | 0.99 ms | 1.61 ms (1.63×) | 0.65 ms (0.66×)  |
 | 64,  32,  128,  256   | 3.35 ms | 3.25 ms (0.97×) | 2.26 ms (0.68×)  |
@@ -91,7 +96,7 @@ python3 tests/test_triton.py     # Triton backend parity (CUDA only)
 
 ## Related work
 
-prLSTM follows recent work on making LSTMs trainable in parallel by removing the
+HeadStartLSTM follows recent work on making LSTMs trainable in parallel by removing the
 gates' dependence on the previous hidden state, which turns the state update into
 an associative first-order recurrence that a parallel prefix scan can evaluate in
 O(log T):
@@ -100,7 +105,7 @@ O(log T):
   ([arXiv:2410.01201](https://arxiv.org/abs/2410.01201)). Introduces *minLSTM* /
   *minGRU*, minimal RNNs whose gates drop the hidden-state dependence so the
   recurrence `h_t = f_t ⊙ h_{t-1} + i_t ⊙ ĥ_t` can be run as a parallel scan.
-  prLSTM's `parallel=True` mode (dropping the recurrent term at `a = 0`) uses the
+  HeadStartLSTM's `parallel=True` mode (dropping the recurrent term at `a = 0`) uses the
   same idea (input-only gates).
 - **xLSTM: Extended Long Short-Term Memory** — Beck et al., 2024
   ([arXiv:2405.04517](https://arxiv.org/abs/2405.04517)). Scales LSTMs with

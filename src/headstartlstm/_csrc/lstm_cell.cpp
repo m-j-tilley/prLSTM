@@ -1,4 +1,4 @@
-// PRLSTM: parallelisable-recurrent LSTM, C++ ATen-ops baseline.
+// HeadStartLSTM: a parallel-scan-trainable LSTM cell, C++ ATen-ops baseline.
 //
 // Single-layer, unidirectional LSTM forward, modified in exactly two ways
 // from the canonical cell (see torch/nn/modules/rnn.py):
@@ -25,7 +25,7 @@
 #include <torch/extension.h>
 #include <vector>
 
-std::vector<torch::Tensor> prlstm_forward(
+std::vector<torch::Tensor> headstartlstm_forward(
     torch::Tensor input,        // [T, B, input_size]
     torch::Tensor h0,           // [B, hidden_size]
     torch::Tensor c0,           // [B, hidden_size]
@@ -78,6 +78,6 @@ std::vector<torch::Tensor> prlstm_forward(
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("prlstm_forward", &prlstm_forward,
-          "PRLSTM forward (sigmoid g_t + per-gate a-scaled hh contribution)");
+    m.def("headstartlstm_forward", &headstartlstm_forward,
+          "HeadStartLSTM forward (sigmoid g_t + per-gate a-scaled hh contribution)");
 }
